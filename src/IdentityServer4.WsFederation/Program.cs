@@ -13,7 +13,11 @@ namespace IdentityServer4.WsFederation
     {
         public static void Main(string[] args)
         {
-            Console.Title = "IdentityServer4";
+            //Ratheesh: The program starts here
+            //By setting startup as the next method, we set the runtime to auto invoke the
+            //ConfigureServices and Configure methods. Lets go!
+
+            Console.Title = "IdentityServer4 for B2C";
 
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()

@@ -12,6 +12,10 @@ using Microsoft.Identity.Client;
 using IdentityServer4.WsFederation.Models;
 using System.Security.Claims;
 using Microsoft.Extensions.DependencyInjection;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography.Pkcs;
+using IdentityServer4.Extensions;
+using System.Runtime.Remoting.Contexts;
 
 namespace IdentityServer4.WsFederation
 {
@@ -41,11 +45,25 @@ namespace IdentityServer4.WsFederation
             public AzureAdB2COptions AzureAdB2COptions { get; set; }
 
             public void Configure(string name, OpenIdConnectOptions options)
-            {
+            {   //Ratheesh: Here is where we configure various aspects related to OIDC
+                //including callback and tokenvalidation parameters.
                 options.ClientId = AzureAdB2COptions.ClientId;
                 options.Authority = AzureAdB2COptions.Authority;
                 options.UseTokenLifetime = true;
-                options.TokenValidationParameters = new TokenValidationParameters() { NameClaimType = "name" };
+                options.SaveTokens = true;
+
+                options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
+                options.CallbackPath = "/signin-oidc"; // Account/ExternalLoginCallback";
+                //options.ClaimActions.MapJsonKey("sub", "sub");
+                //options.ClaimActions.MapUniqueJsonKey("sub", "sub");
+                options.TokenValidationParameters = new TokenValidationParameters()
+                {
+                    ValidateAudience = false,
+                    ValidateActor = false,
+                    ValidateIssuer = false,
+                    NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+                };
+
 
                 options.Events = new OpenIdConnectEvents()
                 {
@@ -112,6 +130,39 @@ namespace IdentityServer4.WsFederation
                     .WithRedirectUri(AzureAdB2COptions.RedirectUri)
                     .WithClientSecret(AzureAdB2COptions.ClientSecret)
                     .Build();
+
+
+                //Ratheesh: This is where we parse the claim and add it AuthenticationToken list.
+                //Now for some reason, OIDC is re-mapping "sub" as "name". Not sure why.
+                //Hence adding sub claim back into the token before saving it.
+
+                List<AuthenticationToken> tokens = new List<AuthenticationToken>();
+
+                foreach (Claim localclaims in context.Principal.Claims )
+                {
+                    if ((localclaims.Type!=null)&(localclaims.Value!=null))
+                    {
+                       tokens.Add(new AuthenticationToken()
+                       {
+                          Name = localclaims.Type,
+                          Value = localclaims.Value
+
+                       });
+                    }
+                }
+                //claims = context.Principal.Claims.Select((x => new { Name = x.Type, Value = x.Value }));
+                //List<AuthenticationToken> tokens = (claims as IEnumerable<AuthenticationToken>).ToList();
+
+
+                tokens.Add(new AuthenticationToken()
+                {
+                    Name = "sub",
+                    Value = signedInUserID
+                });
+               
+
+                context.Properties.StoreTokens(tokens);
+
                 new MSALStaticCache(signedInUserID, context.HttpContext).EnablePersistence(cca.UserTokenCache);
 
                 try
@@ -119,8 +170,8 @@ namespace IdentityServer4.WsFederation
                     AuthenticationResult result = await cca.AcquireTokenByAuthorizationCode(AzureAdB2COptions.ApiScopes.Split(' '), code)
                         .ExecuteAsync();
 
+                        context.HandleCodeRedemption(result.AccessToken, result.IdToken);
 
-                    context.HandleCodeRedemption(result.AccessToken, result.IdToken);
                 }
                 catch (Exception ex)
                 {
