@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -12,7 +11,7 @@ namespace IdentityServer4.WsFederation
 
         public AzureAdB2COptions()
         {
-            AzureAdB2CInstance = "https://ilinksystemsb2c.b2clogin.com/tfp";
+            AzureAdB2CInstance = "https://fabrikamb2c.b2clogin.com/tfp";
         }
 
         public string ClientId { get; set; }
@@ -31,14 +30,5 @@ namespace IdentityServer4.WsFederation
         public string ClientSecret { get; set; }
         public string ApiUrl { get; set; }
         public string ApiScopes { get; set; }
-
-        public string SignInScheme { get; set; }
-
-        public string SignOutScheme { get; set; }
-
-        public string ResponseType { get; set; }
-
-        public string CallbackPath { get; set; }
-
     }
 }
